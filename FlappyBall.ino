@@ -45,15 +45,16 @@ Arduboy arduboy;
 #define BALL_Y_START ((HEIGHT / 2) - 1) // The height Floaty begins at
 #define BALL_X 32              // Floaty's X Axis
 
-#define LEFT_EDGE 0
-#define GAP_LOCATION 1
-#define ACTIVE 2
+#define ACTIVE 0
+#define LEFT_EDGE 1
+#define GAP_LOCATION 2
+#define GAP_WIDTH 3
 
 // Storage Vars
 byte gameState = 0;
 unsigned int gameScore = 0;
 unsigned int gameHighScore = 0;
-char pipes[3][PIPE_ARRAY_SIZE]; // Row 0 for x values, row 1 for gap location, row 3 for active
+char pipes[4 ][PIPE_ARRAY_SIZE]; // Row 0 for x values, row 1 for gap location, row 3 for active
 byte pipeGap = PIPE_GAP_MAX;    // Height of gap between pipes to fly through
 byte pipeReduceCount = PIPE_GAP_REDUCE; // Score tracker for pipe gap reduction
 char ballY = BALL_Y_START;      // Floaty's height
@@ -298,13 +299,13 @@ void drawPipes() {
                                // otherwise it is the xvalue of the pipe's left edge
       // Pipes
       arduboy.drawRect(pipes[LEFT_EDGE][x], -1, PIPE_WIDTH, pipes[GAP_LOCATION][x], WHITE);
-      arduboy.drawRect(pipes[LEFT_EDGE][x], pipes[GAP_LOCATION][x] + pipeGap, PIPE_WIDTH, HEIGHT - pipes[GAP_LOCATION][x] - pipeGap, WHITE);
+      arduboy.drawRect(pipes[LEFT_EDGE][x], pipes[GAP_LOCATION][x] + pipes[GAP_WIDTH][x], PIPE_WIDTH, HEIGHT - pipes[GAP_LOCATION][x] - pipes[GAP_WIDTH][x], WHITE);
       // Caps
       arduboy.drawRect(pipes[LEFT_EDGE][x] - PIPE_CAP_WIDTH, pipes[GAP_LOCATION][x] - PIPE_CAP_HEIGHT, PIPE_WIDTH + (PIPE_CAP_WIDTH*2), PIPE_CAP_HEIGHT, WHITE);
-      arduboy.drawRect(pipes[LEFT_EDGE][x] - PIPE_CAP_WIDTH, pipes[GAP_LOCATION][x] + pipeGap, PIPE_WIDTH + (PIPE_CAP_WIDTH*2), PIPE_CAP_HEIGHT, WHITE);
+      arduboy.drawRect(pipes[LEFT_EDGE][x] - PIPE_CAP_WIDTH, pipes[GAP_LOCATION][x] + pipes[GAP_WIDTH][x], PIPE_WIDTH + (PIPE_CAP_WIDTH*2), PIPE_CAP_HEIGHT, WHITE);
       // Detail lines
       arduboy.drawLine(pipes[LEFT_EDGE][x]+2, 0, pipes[LEFT_EDGE][x]+2, pipes[GAP_LOCATION][x]-5, WHITE);
-      arduboy.drawLine(pipes[LEFT_EDGE][x]+2, pipes[GAP_LOCATION][x] + pipeGap + 5, pipes[LEFT_EDGE][x]+2, HEIGHT - 3,WHITE);
+      arduboy.drawLine(pipes[LEFT_EDGE][x]+2, pipes[GAP_LOCATION][x] + pipes[GAP_WIDTH][x] + 5, pipes[LEFT_EDGE][x]+2, HEIGHT - 3,WHITE);
     }
   }
 }
@@ -315,6 +316,7 @@ void generatePipe() {
       pipes[LEFT_EDGE][x] = WIDTH;  // Then create it starting right of the screen
       pipes[GAP_LOCATION][x] = random(PIPE_MIN_HEIGHT, HEIGHT - PIPE_MIN_HEIGHT - pipeGap);
       pipes[ACTIVE][x] = 1;
+      pipes[GAP_WIDTH][x] = pipeGap;
       return;
     }
   }
@@ -343,7 +345,7 @@ boolean checkPipe(byte x) {  // Collision detection, x is pipe to check
   // check bottom cylinder
   BxA = pipes[LEFT_EDGE][x];
   BxB = pipes[LEFT_EDGE][x] + PIPE_WIDTH;
-  ByA = pipes[GAP_LOCATION][x] + pipeGap;
+  ByA = pipes[GAP_LOCATION][x] + pipes[GAP_WIDTH][x];
   ByB = HEIGHT-1;
   if (AxA < BxB && AxB > BxA && AyA < ByB && AyB > ByA) { return true; } // Collided with bottom pipe
   
