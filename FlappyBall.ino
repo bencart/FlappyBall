@@ -3,7 +3,8 @@
   Written by Chris Martinez, 3/5/2014
   Modified by Scott Allen, April 2016
 */
-
+#include <SPI.h>
+#include <EEPROM.h>
 #include <Arduboy.h>
 #include "bitmaps.h"
 
@@ -44,11 +45,15 @@ Arduboy arduboy;
 #define BALL_Y_START ((HEIGHT / 2) - 1) // The height Floaty begins at
 #define BALL_X 32              // Floaty's X Axis
 
+#define LEFT_EDGE 0
+#define GAP_LOCATION 1
+#define ACTIVE 2
+
 // Storage Vars
 byte gameState = 0;
 unsigned int gameScore = 0;
 unsigned int gameHighScore = 0;
-char pipes[2][PIPE_ARRAY_SIZE]; // Row 0 for x values, row 1 for gap location
+char pipes[3][PIPE_ARRAY_SIZE]; // Row 0 for x values, row 1 for gap location, row 3 for active
 byte pipeGap = PIPE_GAP_MAX;    // Height of gap between pipes to fly through
 byte pipeReduceCount = PIPE_GAP_REDUCE; // Score tracker for pipe gap reduction
 char ballY = BALL_Y_START;      // Floaty's height
@@ -102,7 +107,7 @@ void setup() {
   debounceButtons();
 
   arduboy.initRandomSeed();
-  for (byte x = 0; x < PIPE_ARRAY_SIZE; x++) { pipes[0][x] = 0; }  // Set all pipes offscreen
+  for (byte x = 0; x < PIPE_ARRAY_SIZE; x++) { pipes[ACTIVE][x] = 0; }  // Set all pipes offscreen
 }
 
 void loop() {
@@ -154,12 +159,12 @@ void loop() {
     }
 
     for (byte x = 0; x < PIPE_ARRAY_SIZE; x++) {  // For each pipe array element
-      if (pipes[0][x] != 0) {           // If the pipe is active
-        pipes[0][x] = pipes[0][x] - PIPE_MOVE_DISTANCE;  // Then move it left
-        if (pipes[0][x] + PIPE_WIDTH < 0) {  // If the pipe's right edge is off screen
-          pipes[0][x] = 0;              // Then set it inactive
+      if (pipes[ACTIVE][x] != 0) {           // If the pipe is active
+        pipes[LEFT_EDGE][x] = pipes[LEFT_EDGE][x] - PIPE_MOVE_DISTANCE;  // Then move it left
+        if (pipes[LEFT_EDGE][x] + PIPE_WIDTH < 0) {  // If the pipe's right edge is off screen
+          pipes[ACTIVE][x] = 0;              // Then set it inactive
         }
-        if (pipes[0][x] + PIPE_WIDTH == (BALL_X - BALL_RADIUS)) {  // If the pipe passed Floaty
+        if (pipes[LEFT_EDGE][x] + PIPE_WIDTH == (BALL_X - BALL_RADIUS)) {  // If the pipe passed Floaty
           gameScore++;                  // Increment the score
           pipeReduceCount--;            // Decrement the gap reduction counter
           gameScoreX = BALL_X;                  // Load up the floating text with
@@ -188,7 +193,7 @@ void loop() {
     }
     // Collision checking
     for (byte x = 0; x < PIPE_ARRAY_SIZE; x++) { // For each pipe array element
-      if (pipes[0][x] != 0) {                 // If the pipe is active (not 0)
+      if (pipes[ACTIVE][x] != 0) {                 // If the pipe is active (not 0)
         if (checkPipe(x)) { gameState = 2; }  // If the check is true, game over
       }
     }
@@ -244,7 +249,7 @@ void loop() {
     playSound(intro);    // Play the intro
     gameScore = 0;       // Reset score to 0
     gameScoreRiser = 0;  // Clear the floating score
-    for (byte x = 0; x < PIPE_ARRAY_SIZE; x++) { pipes[0][x] = 0; }  // set all pipes inactive
+    for (byte x = 0; x < PIPE_ARRAY_SIZE; x++) { pipes[ACTIVE][x] = 0; }  // set all pipes inactive
     ballY = BALL_Y_START;   // Reset to initial ball height
     pipeGap = PIPE_GAP_MAX; // Reset the pipe gap height
     pipeReduceCount = PIPE_GAP_REDUCE; // Init the pipe gap reduction counter
@@ -289,26 +294,27 @@ void drawFloaty() {
 
 void drawPipes() {
   for (byte x = 0; x < PIPE_ARRAY_SIZE; x++){
-    if (pipes[0][x] != 0) {    // Value set to 0 if array element is inactive,
+    if (pipes[ACTIVE][x] != 0) {    // Value set to 0 if array element is inactive,
                                // otherwise it is the xvalue of the pipe's left edge
       // Pipes
-      arduboy.drawRect(pipes[0][x], -1, PIPE_WIDTH, pipes[1][x], WHITE);
-      arduboy.drawRect(pipes[0][x], pipes[1][x] + pipeGap, PIPE_WIDTH, HEIGHT - pipes[1][x] - pipeGap, WHITE);
+      arduboy.drawRect(pipes[LEFT_EDGE][x], -1, PIPE_WIDTH, pipes[GAP_LOCATION][x], WHITE);
+      arduboy.drawRect(pipes[LEFT_EDGE][x], pipes[GAP_LOCATION][x] + pipeGap, PIPE_WIDTH, HEIGHT - pipes[GAP_LOCATION][x] - pipeGap, WHITE);
       // Caps
-      arduboy.drawRect(pipes[0][x] - PIPE_CAP_WIDTH, pipes[1][x] - PIPE_CAP_HEIGHT, PIPE_WIDTH + (PIPE_CAP_WIDTH*2), PIPE_CAP_HEIGHT, WHITE);
-      arduboy.drawRect(pipes[0][x] - PIPE_CAP_WIDTH, pipes[1][x] + pipeGap, PIPE_WIDTH + (PIPE_CAP_WIDTH*2), PIPE_CAP_HEIGHT, WHITE);
+      arduboy.drawRect(pipes[LEFT_EDGE][x] - PIPE_CAP_WIDTH, pipes[GAP_LOCATION][x] - PIPE_CAP_HEIGHT, PIPE_WIDTH + (PIPE_CAP_WIDTH*2), PIPE_CAP_HEIGHT, WHITE);
+      arduboy.drawRect(pipes[LEFT_EDGE][x] - PIPE_CAP_WIDTH, pipes[GAP_LOCATION][x] + pipeGap, PIPE_WIDTH + (PIPE_CAP_WIDTH*2), PIPE_CAP_HEIGHT, WHITE);
       // Detail lines
-      arduboy.drawLine(pipes[0][x]+2, 0, pipes[0][x]+2, pipes[1][x]-5, WHITE);
-      arduboy.drawLine(pipes[0][x]+2, pipes[1][x] + pipeGap + 5, pipes[0][x]+2, HEIGHT - 3,WHITE);
+      arduboy.drawLine(pipes[LEFT_EDGE][x]+2, 0, pipes[LEFT_EDGE][x]+2, pipes[GAP_LOCATION][x]-5, WHITE);
+      arduboy.drawLine(pipes[LEFT_EDGE][x]+2, pipes[GAP_LOCATION][x] + pipeGap + 5, pipes[LEFT_EDGE][x]+2, HEIGHT - 3,WHITE);
     }
   }
 }
 
 void generatePipe() {
   for (byte x = 0; x < PIPE_ARRAY_SIZE; x++) {
-    if (pipes[0][x] == 0) { // If the element is inactive
-      pipes[0][x] = WIDTH;  // Then create it starting right of the screen
-      pipes[1][x] = random(PIPE_MIN_HEIGHT, HEIGHT - PIPE_MIN_HEIGHT - pipeGap);
+    if (pipes[ACTIVE][x] == 0) { // If the element is inactive
+      pipes[LEFT_EDGE][x] = WIDTH;  // Then create it starting right of the screen
+      pipes[GAP_LOCATION][x] = random(PIPE_MIN_HEIGHT, HEIGHT - PIPE_MIN_HEIGHT - pipeGap);
+      pipes[ACTIVE][x] = 1;
       return;
     }
   }
@@ -322,27 +328,27 @@ boolean checkPipe(byte x) {  // Collision detection, x is pipe to check
   byte BxA, BxB, ByA, ByB;
   
   // check top cylinder
-  BxA = pipes[0][x];
-  BxB = pipes[0][x] + PIPE_WIDTH;
+  BxA = pipes[LEFT_EDGE][x];
+  BxB = pipes[LEFT_EDGE][x] + PIPE_WIDTH;
   ByA = 0;
-  ByB = pipes[1][x];
+  ByB = pipes[GAP_LOCATION][x];
   if (AxA < BxB && AxB > BxA && AyA < ByB && AyB > ByA) { return true; } // Collided with top pipe
   
   // check top cap
-  BxA = pipes[0][x] - PIPE_CAP_WIDTH;
+  BxA = pipes[LEFT_EDGE][x] - PIPE_CAP_WIDTH;
   BxB = BxA + PIPE_WIDTH + (PIPE_CAP_WIDTH*2);
-  ByA = pipes[1][x] - PIPE_CAP_HEIGHT;
+  ByA = pipes[GAP_LOCATION][x] - PIPE_CAP_HEIGHT;
   if (AxA < BxB && AxB > BxA && AyA < ByB && AyB > ByA) { return true; } // Collided with top cap
   
   // check bottom cylinder
-  BxA = pipes[0][x];
-  BxB = pipes[0][x] + PIPE_WIDTH;
-  ByA = pipes[1][x] + pipeGap;
+  BxA = pipes[LEFT_EDGE][x];
+  BxB = pipes[LEFT_EDGE][x] + PIPE_WIDTH;
+  ByA = pipes[GAP_LOCATION][x] + pipeGap;
   ByB = HEIGHT-1;
   if (AxA < BxB && AxB > BxA && AyA < ByB && AyB > ByA) { return true; } // Collided with bottom pipe
   
   // check bottom cap
-  BxA = pipes[0][x] - PIPE_CAP_WIDTH;
+  BxA = pipes[LEFT_EDGE][x] - PIPE_CAP_WIDTH;
   BxB = BxA + PIPE_WIDTH + (PIPE_CAP_WIDTH*2);
   ByB = ByA + PIPE_CAP_HEIGHT;
   if (AxA < BxB && AxB > BxA && AyA < ByB && AyB > ByA) { return true; } // Collided with bottom pipe
@@ -412,4 +418,3 @@ byte getOffset(byte s) {
   if (s > 9) { return 5; }
   return 0;
 }
-
